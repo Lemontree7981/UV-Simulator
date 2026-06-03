@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="PCAN — Predictive Cone-based Avoidance Navigation: Interactive 2D drone simulation visualizer with threat cones, velocity obstacles, and escape heuristics." />
+  <title>PCAN — Predictive Cone-based Avoidance Navigation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+  <!-- ─── Header ─────────────────────────────────────────── -->
+  <header id="app-header">
+    <div class="header-left">
+      <div class="logo-mark">
+        <svg viewBox="0 0 32 32" fill="none">
+          <path d="M16 2L28 10V22L16 30L4 22V10L16 2Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          <circle cx="16" cy="16" r="4" fill="currentColor" opacity="0.8"/>
+          <path d="M16 12L20 16L16 20L12 16Z" stroke="currentColor" stroke-width="1" fill="none"/>
+        </svg>
+      </div>
+      <div class="header-title">
+        <h1>PCAN</h1>
+        <span class="subtitle">Predictive Cone-based Avoidance Navigation</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="status-badge" id="status-badge">
+        <span class="status-dot"></span>
+        <span class="status-text">Ready</span>
+      </div>
+      <button id="btn-help" class="icon-btn" title="Algorithm Reference">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ─── Main Layout ────────────────────────────────────── -->
+  <main id="app-main">
+    <!-- Simulation Canvas -->
+    <section id="canvas-panel">
+      <canvas id="sim-canvas"></canvas>
+      <!-- Overlay HUD -->
+      <div id="hud-overlay">
+        <div class="hud-item" id="hud-frame">
+          <span class="hud-label">Frame</span>
+          <span class="hud-value" id="hud-frame-val">0</span>
+        </div>
+        <div class="hud-item" id="hud-stall">
+          <span class="hud-label">Stall</span>
+          <span class="hud-value" id="hud-stall-val">0</span>
+        </div>
+        <div class="hud-item" id="hud-dist">
+          <span class="hud-label">Goal Dist</span>
+          <span class="hud-value" id="hud-dist-val">—</span>
+        </div>
+        <div class="hud-item" id="hud-speed">
+          <span class="hud-label">Speed</span>
+          <span class="hud-value" id="hud-speed-val">—</span>
+        </div>
+      </div>
+      <!-- Canvas controls -->
+      <div id="canvas-controls">
+        <button id="btn-play" class="ctrl-btn primary" title="Play / Pause">
+          <svg id="icon-play" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+          <svg id="icon-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        </button>
+        <button id="btn-step" class="ctrl-btn" title="Step Forward">
+          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,4 15,12 5,20"/><rect x="16" y="4" width="3" height="16"/></svg>
+        </button>
+        <button id="btn-reset" class="ctrl-btn" title="Reset Simulation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+        </button>
+        <div class="ctrl-separator"></div>
+        <button id="btn-add-obs" class="ctrl-btn" title="Add Random Obstacle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <button id="btn-clear-obs" class="ctrl-btn" title="Clear All Obstacles">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <!-- Legend -->
+      <div id="legend">
+        <div class="legend-item"><span class="legend-color" style="background: #00e5ff;"></span>Drone</div>
+        <div class="legend-item"><span class="legend-color" style="background: #ff1744;"></span>Obstacle</div>
+        <div class="legend-item"><span class="legend-color" style="background: #76ff03;"></span>Goal</div>
+        <div class="legend-item"><span class="legend-color" style="background: rgba(0,229,255,0.15);"></span>Detection Ring</div>
+        <div class="legend-item"><span class="legend-color" style="background: rgba(255,50,50,0.55);"></span>Collision Point</div>
+        <div class="legend-item"><span class="legend-color" style="background: #ff9100;"></span>F_rep</div>
+        <div class="legend-item"><span class="legend-color" style="background: #e040fb;"></span>Escape Vector</div>
+      </div>
+    </section>
+
+    <!-- Side Panel -->
+    <aside id="side-panel">
+      <!-- Tabs -->
+      <div id="panel-tabs">
+        <button class="tab active" data-tab="params">Parameters</button>
+        <button class="tab" data-tab="steps">Algorithm Steps</button>
+        <button class="tab" data-tab="vectors">Live Vectors</button>
+      </div>
+
+      <!-- Tab: Parameters -->
+      <div class="tab-content active" id="tab-params">
+        <div class="param-group">
+          <h3>Attraction</h3>
+          <label class="param-row">
+            <span class="param-name">k_att</span>
+            <input type="range" id="param-k-att" min="0.1" max="5" step="0.1" value="1.5" />
+            <span class="param-val" id="val-k-att">1.5</span>
+          </label>
+        </div>
+        <div class="param-group">
+          <h3>Repulsion</h3>
+          <label class="param-row">
+            <span class="param-name">k_rep</span>
+            <input type="range" id="param-k-rep" min="10" max="500" step="10" value="150" />
+            <span class="param-val" id="val-k-rep">150</span>
+          </label>
+          <label class="param-row">
+            <span class="param-name">T (prediction horizon)</span>
+            <input type="range" id="param-T" min="0.1" max="3" step="0.1" value="1.0" />
+            <span class="param-val" id="val-T">1.0</span>
+          </label>
+        </div>
+        <div class="param-group">
+          <h3>Avoidance</h3>
+          <label class="param-row">
+            <span class="param-name">Detection Range (px)</span>
+            <input type="range" id="param-det-range" min="80" max="500" step="10" value="250" />
+            <span class="param-val" id="val-det-range">250</span>
+          </label>
+          <label class="param-row">
+            <span class="param-name">Safety Margin (px)</span>
+            <input type="range" id="param-safety" min="5" max="100" step="5" value="35" />
+            <span class="param-val" id="val-safety">35</span>
+          </label>
+        </div>
+        <div class="param-group">
+          <h3>Escape Heuristic</h3>
+          <label class="param-row">
+            <span class="param-name">Stall Threshold (frames)</span>
+            <input type="range" id="param-stall" min="10" max="100" step="5" value="30" />
+            <span class="param-val" id="val-stall">30</span>
+          </label>
+          <label class="param-row">
+            <span class="param-name">Escape Angle (°)</span>
+            <input type="range" id="param-escape-angle" min="15" max="90" step="5" value="45" />
+            <span class="param-val" id="val-escape-angle">45</span>
+          </label>
+          <label class="param-row">
+            <span class="param-name">Escape Strength</span>
+            <input type="range" id="param-escape-str" min="0.5" max="5" step="0.1" value="2.0" />
+            <span class="param-val" id="val-escape-str">2.0</span>
+          </label>
+        </div>
+        <div class="param-group">
+          <h3>Simulation</h3>
+          <label class="param-row">
+            <span class="param-name">Max Speed</span>
+            <input type="range" id="param-max-speed" min="0.5" max="8" step="0.5" value="3" />
+            <span class="param-val" id="val-max-speed">3</span>
+          </label>
+          <label class="param-row">
+            <span class="param-name">Obstacle Count</span>
+            <input type="range" id="param-obs-count" min="1" max="20" step="1" value="6" />
+            <span class="param-val" id="val-obs-count">6</span>
+          </label>
+          <label class="param-row checkbox-row">
+            <input type="checkbox" id="param-show-trails" checked />
+            <span class="param-name">Show Drone Trail</span>
+          </label>
+          <label class="param-row checkbox-row">
+            <input type="checkbox" id="param-show-pred" checked />
+            <span class="param-name">Show Predicted Positions</span>
+          </label>
+          <label class="param-row checkbox-row">
+            <input type="checkbox" id="param-show-vectors" checked />
+            <span class="param-name">Show Force Vectors</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Tab: Algorithm Steps -->
+      <div class="tab-content" id="tab-steps">
+        <div class="step-card" id="step-1">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>Goal Attraction</h4>
+            <code>F_goal = k_att × normalize(goal − pos)</code>
+            <p>Pull the drone toward the target with constant magnitude <em>k_att</em>. This is the baseline steering force.</p>
+          </div>
+        </div>
+        <div class="step-card" id="step-2">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>Relative Motion</h4>
+            <code>relPos = obs_pos − drone_pos · relVel = obs_vel − drone_vel</code>
+            <p>Compute the relative position and velocity between drone and each obstacle within the detection range. Obstacles beyond the range are fully ignored.</p>
+          </div>
+        </div>
+        <div class="step-card" id="step-3">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>Time to Closest Approach</h4>
+            <code>t_ca = −dot(relPos, relVel) / |relVel|²</code>
+            <p>Find the future time (clamped to horizon <em>T</em>) when drone and obstacle will be at minimum separation. Project both positions to that time.</p>
+          </div>
+        </div>
+        <div class="step-card" id="step-4">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>Urgency Assessment</h4>
+            <code>urgency = 1 − closest_dist / safe_radius</code>
+            <p>If the closest approach distance is inside the safety envelope, urgency is 0→1. A time factor boosts urgency for imminent collisions.</p>
+          </div>
+        </div>
+        <div class="step-card" id="step-5">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <h4>Blended Avoidance Force</h4>
+            <code>F_rep = (away×0.45 + perp×0.55) × k_rep × urgency</code>
+            <p>Steer away from the predicted collision point (45%) <em>and</em> perpendicular to the obstacle's path in the goal-friendly direction (55%). This actually moves out of the way.</p>
+          </div>
+        </div>
+        <div class="step-card" id="step-6">
+          <div class="step-num">6</div>
+          <div class="step-body">
+            <h4>Stall Escape</h4>
+            <code>if stall_frames ≥ threshold → inject escape_vec</code>
+            <p>If the drone stops making progress, inject a randomised escape vector biased toward the goal direction to break out of local minima.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Live Vectors -->
+      <div class="tab-content" id="tab-vectors">
+        <div class="vector-display">
+          <div class="vec-row">
+            <span class="vec-label" style="color:#00e5ff">F_goal</span>
+            <span class="vec-val" id="vec-goal">(0.00, 0.00)</span>
+            <span class="vec-mag" id="vec-goal-mag">|0.00|</span>
+          </div>
+          <div class="vec-row">
+            <span class="vec-label" style="color:#ff9100">F_rep (total)</span>
+            <span class="vec-val" id="vec-rep">(0.00, 0.00)</span>
+            <span class="vec-mag" id="vec-rep-mag">|0.00|</span>
+          </div>
+          <div class="vec-row">
+            <span class="vec-label" style="color:#e040fb">F_escape</span>
+            <span class="vec-val" id="vec-escape">(0.00, 0.00)</span>
+            <span class="vec-mag" id="vec-escape-mag">|0.00|</span>
+          </div>
+          <div class="vec-row total">
+            <span class="vec-label" style="color:#fff">F_total</span>
+            <span class="vec-val" id="vec-total">(0.00, 0.00)</span>
+            <span class="vec-mag" id="vec-total-mag">|0.00|</span>
+          </div>
+        </div>
+        <hr class="vec-divider" />
+        <div class="vec-section-title">Per-Obstacle Breakdown</div>
+        <div id="obs-breakdown"></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Help Modal -->
+  <div id="help-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <button id="btn-close-help" class="modal-close">&times;</button>
+      <h2>PCAN Algorithm Reference</h2>
+      <div class="modal-body">
+        <p><strong>PCAN</strong> — Predictive Cone-based Avoidance Navigation — is a hybrid reactive-predictive method combining:</p>
+        <ul>
+          <li><strong>Potential Field Navigation</strong> — attractive goal force + repulsive obstacle forces</li>
+          <li><strong>Velocity Obstacle Methods</strong> — predicting future obstacle positions using current velocity</li>
+          <li><strong>Random Restart Heuristics</strong> — escaping local minima when stalled</li>
+        </ul>
+        <h3>Key Differentiators from Classical PF</h3>
+        <ol>
+          <li><strong>Predictive:</strong> reacts to where obstacles <em>will be</em>, not where they are now</li>
+          <li><strong>Cone-filtered:</strong> only obstacles in the forward threat cone trigger repulsion</li>
+          <li><strong>Alignment-weighted:</strong> head-on threats get exponentially higher repulsion</li>
+          <li><strong>Stall-aware:</strong> deterministic escape from local minima</li>
+        </ol>
+        <h3>Viva Questions to Prepare</h3>
+        <ul>
+          <li>Why <code>max(0, dot(...))</code>? — Clamps diverging obstacles so they don't <em>attract</em></li>
+          <li>Why <code>1 + alignment</code> not just <code>alignment</code>? — Guarantees non-zero repulsion even for perpendicular movers</li>
+          <li>Why 30 frames? — Empirical threshold; too low = jitter, too high = stuck too long</li>
+          <li>Why 45° escape? — Biases toward goal rather than random direction; still breaks symmetry</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script src="pcan.js"></script>
+</body>
+</html>
